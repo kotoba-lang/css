@@ -60,3 +60,43 @@
 
 (defn style-node [sheet]
   [:style [:hiccup/raw (css sheet)]])
+
+;; ---------------------------------------------------------------------------
+;; Operator-console theme — shared by every cloud-itonami capability UI
+;; ---------------------------------------------------------------------------
+
+(def operator-theme
+  "Base CSS rules shared by every cloud-itonami operator console: page
+  chrome (body, header.bar, main), cards, tables, status badges and muted
+  text. Capability UIs merge domain-specific rules on top."
+  {"body"              {:font-family "system-ui,-apple-system,sans-serif"
+                        :margin 0 :color "#1a1a1a" :background "#fafafa"}
+   "header.bar"        {:display :flex :align-items :center :gap 12
+                        :padding "12px 20px" :background "#fff"
+                        :border-bottom "1px solid #e5e5e5"}
+   "header.bar h1"     {:font-size 18 :margin 0 :font-weight 600}
+   "header.bar .badge" {:margin-left :auto :font-size 12 :color "#666"}
+   "main"              {:max-width 980 :margin "24px auto" :padding "0 20px"}
+   ".card"             {:background "#fff" :border "1px solid #e5e5e5"
+                        :border-radius 8 :padding 16 :margin-bottom 16}
+   "h2"                {:margin-top 0 :font-size 15}
+   "table"             {:width "100%" :border-collapse :collapse :font-size 14}
+   "th, td"            {:text-align :left :padding "8px 10px"
+                        :border-bottom "1px solid #f0f0f0"}
+   "th"                {:font-weight 600 :color "#555" :font-size 12
+                        :text-transform :uppercase :letter-spacing "0.04em"}
+   "td.amt"            {:font-variant-numeric :tabular-nums :text-align :right}
+   ".ok"               {:color "#137a3f"}
+   ".warn"             {:color "#b25c00" :background "#fff8e1"
+                        :padding "2px 6px" :border-radius 4}
+   ".err"              {:color "#b3261e" :background "#fbe9e7"
+                        :padding "2px 6px" :border-radius 4}
+   ".critical"         {:color "#fff" :background "#b3261e"
+                        :padding "2px 6px" :border-radius 4 :font-weight 600}
+   ".muted"            {:color "#888"}})
+
+(defn merge-theme
+  "Merge a domain sheet's extra rules over the operator-theme base. Returns
+  a sheet map {:rules ...} suitable for css/style-node."
+  [extra-rules]
+  {:rules (merge operator-theme extra-rules)})

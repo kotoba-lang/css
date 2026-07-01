@@ -55,7 +55,7 @@
   (str/join "\n"
             (concat
              (for [[sel decls] rules] (rule sel decls))
-             (for [[nm frames] keyframes] (keyframes nm frames))
+             (for [[nm frames] keyframes] (kf nm frames))
              (for [[query rules] (:media sheet)] (media query rules)))))
 
 (defn style-node [sheet]

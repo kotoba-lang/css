@@ -13,7 +13,7 @@ space-joined CSS values, and keywords become bare CSS identifiers.
 | | |
 |---|---|
 | Role | ui-substrate |
-| Tests | 14 assertions, all green |
+| Tests | `clojure -M:test` |
 | Operator console (UI/UX) | — |
 | Export (CSV/JSON) | — |
 | Shared CSS design system | yes (css.core/operator-theme) |

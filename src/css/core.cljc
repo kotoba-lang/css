@@ -10,6 +10,24 @@
     :line-clamp :line-height :opacity :order :orphans :scale :tab-size
     :widows :z-index :zoom})
 
+(defn- assert-no-css-breakout!
+  "Property values and selectors are spliced into `prop: VALUE;` / `SELECTOR {
+  ... }` text with no other escaping. `{` `}` let attacker-controlled data
+  close the current declaration/rule block and inject entirely new,
+  arbitrary sibling CSS rules (verified against tinycss2, a real CSS
+  parser: a value like \"red; } .evil[href^=http] { background: url(...)\"
+  parses as TWO distinct rules, not one -- genuine rule injection, not a
+  cosmetic issue); `;` lets a value inject extra declarations within the
+  same rule; `/*` starts a comment that can swallow the rest of the
+  intended rule. Throw rather than silently producing that output."
+  [what s]
+  (when (re-find #"[{};]|/\*" s)
+    (throw (ex-info (str "css: " what " contains a character ({ } ; or a /* "
+                          "comment start) that could break out of the "
+                          "current rule and inject arbitrary sibling CSS")
+                     {:value s})))
+  s)
+
 (defn css-name [x]
   (cond
     (keyword? x) (name x)
@@ -21,8 +39,8 @@
     (nil? v) nil
     (number? v) (if (or (unitless prop) (zero? v)) (str v) (str v "px"))
     (vector? v) (str/join " " (keep #(value-str prop %) v))
-    (keyword? v) (name v)
-    :else (str v)))
+    (keyword? v) (assert-no-css-breakout! (str "value for " (css-name prop)) (name v))
+    :else (assert-no-css-breakout! (str "value for " (css-name prop)) (str v))))
 
 (defn declarations [m]
   (str/join " "
@@ -34,7 +52,7 @@
 (def style declarations)
 
 (defn rule [selector decls]
-  (str selector " { " (declarations decls) " }"))
+  (str (assert-no-css-breakout! "selector" (str selector)) " { " (declarations decls) " }"))
 
 (defn media [query rules]
   (str "@media " query " { "

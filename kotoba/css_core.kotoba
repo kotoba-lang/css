@@ -1,4 +1,18 @@
-(ns css-core)
+(ns css-core
+  ;; No :export: parity harness appends zero-arg case defns and executes them
+  ;; via KIR (same as pre-T5.2). Schemas alone enable record-new/get.
+  (:schemas {;; T5.2 native guest record: multi-arg pure → single record
+             :css/number-value [:record :css/number-value
+                                [[:prop :keyword] [:n :i64]]]
+             :css/declaration [:record :css/declaration
+                               [[:prop :keyword] [:value :string]]]
+             :css/declarations-from [:record :css/declarations-from
+                                     [[:decls [:map :keyword :string]]
+                                      [:index :i64]
+                                      [:acc :string]]]
+             :css/rule [:record :css/rule
+                        [[:selector :string]
+                         [:decls [:map :keyword :string]]]]}))
 
 ;; A `.kotoba` port of the string-producing core of `css.core` (ADR-2607270100
 ;; §10, form A: components are :string-returning pure functions, the tree lives
@@ -11,6 +25,9 @@
 ;; deterministic by construction. The .cljc original walks a Clojure map, whose
 ;; order is insertion-defined only up to 8 entries and hash-defined above it;
 ;; parity therefore holds against a key-sorted .cljc run (see the parity test).
+;;
+;; T5.2: multi-arg pure folded into single guest records (number-value,
+;; declaration, declarations-from, rule).
 
 ;; --- integers -------------------------------------------------------------
 ;; There is no number->string builtin, so digits come out of a literal by
@@ -61,62 +78,80 @@
 (defn unitless? [prop :keyword] :bool
   (typed-set-contains [:set :keyword] (unitless) prop))
 
-(defn number-value [prop :keyword n :i64] :string
-  (if (unitless? prop)
-    (i64-str n)
-    (if (= n 0)
+(defn number-value [x [:ref :css/number-value]] :string
+  ;; T5.2: prop+n on one guest record
+  (let [prop (record-get x :prop)
+        n (record-get x :n)]
+    (if (unitless? prop)
       (i64-str n)
-      (string-concat (i64-str n) "px"))))
+      (if (= n 0)
+        (i64-str n)
+        (string-concat (i64-str n) "px")))))
 
 ;; --- declarations and rules ----------------------------------------------
 ;; Each returns [:result :string :string]: ok with the text, or err naming what
 ;; would have broken out. The original throws; a Kotoba guest returns the
 ;; failure as a value instead.
 
-(defn declaration [prop :keyword value :string] [:result :string :string]
-  (if (safe? value)
-    (result-ok-of [:result :string :string]
-                  (string-concat (keyword-name prop)
-                                 (string-concat ": " (string-concat value ";"))))
-    (result-err-of [:result :string :string]
-                   (string-concat "unsafe value for " (keyword-name prop)))))
+(defn declaration [x [:ref :css/declaration]] [:result :string :string]
+  ;; T5.2: prop+value on one guest record
+  (let [prop (record-get x :prop)
+        value (record-get x :value)]
+    (if (safe? value)
+      (result-ok-of [:result :string :string]
+                    (string-concat (keyword-name prop)
+                                   (string-concat ": " (string-concat value ";"))))
+      (result-err-of [:result :string :string]
+                     (string-concat "unsafe value for " (keyword-name prop))))))
 
-(defn declarations-from [decls [:map :keyword :string] index :i64 acc :string]
+(defn declarations-from [x [:ref :css/declarations-from]]
   [:result :string :string]
-  (match-option (typed-map-entry-at [:map :keyword :string] decls index)
-                [:option [:vector [:keyword :string]]]
-                (none (result-ok-of [:result :string :string] acc))
-                (some entry
-                      (match-result
-                       (declaration (hetero-vector-at [:vector [:keyword :string]] entry 0)
-                                    (hetero-vector-at [:vector [:keyword :string]] entry 1))
-                       [:result :string :string]
-                       (ok text
-                           (declarations-from decls (+ index 1)
-                                              (if (string=? acc "")
-                                                text
-                                                (string-concat acc (string-concat " " text)))))
-                       (err message
-                            (result-err-of [:result :string :string] message))))))
+  ;; T5.2: decls+index+acc on one guest record
+  (let [decls (record-get x :decls)
+        index (record-get x :index)
+        acc (record-get x :acc)]
+    (match-option (typed-map-entry-at [:map :keyword :string] decls index)
+                  [:option [:vector [:keyword :string]]]
+                  (none (result-ok-of [:result :string :string] acc))
+                  (some entry
+                        (match-result
+                         (declaration (record-new [:ref :css/declaration]
+                                                  (hetero-vector-at [:vector [:keyword :string]] entry 0)
+                                                  (hetero-vector-at [:vector [:keyword :string]] entry 1)))
+                         [:result :string :string]
+                         (ok text
+                             (declarations-from
+                              (record-new [:ref :css/declarations-from]
+                                          decls (+ index 1)
+                                          (if (string=? acc "")
+                                            text
+                                            (string-concat acc (string-concat " " text))))))
+                         (err message
+                              (result-err-of [:result :string :string] message)))))))
 
 (defn declarations [decls [:map :keyword :string]] [:result :string :string]
-  (declarations-from decls 0 ""))
+  (declarations-from (record-new [:ref :css/declarations-from] decls 0 "")))
 
-(defn rule [selector :string decls [:map :keyword :string]] [:result :string :string]
-  (if (safe? selector)
-    (match-result (declarations decls) [:result :string :string]
-                  (ok body
-                      (result-ok-of [:result :string :string]
-                                    (string-concat selector
-                                                   (string-concat " { "
-                                                                  (string-concat body " }")))))
-                  (err message (result-err-of [:result :string :string] message)))
-    (result-err-of [:result :string :string] "unsafe selector")))
+(defn rule [x [:ref :css/rule]] [:result :string :string]
+  ;; T5.2: selector+decls on one guest record
+  (let [selector (record-get x :selector)
+        decls (record-get x :decls)]
+    (if (safe? selector)
+      (match-result (declarations decls) [:result :string :string]
+                    (ok body
+                        (result-ok-of [:result :string :string]
+                                      (string-concat selector
+                                                     (string-concat " { "
+                                                                    (string-concat body " }")))))
+                    (err message (result-err-of [:result :string :string] message)))
+      (result-err-of [:result :string :string] "unsafe selector"))))
 
 (defn main []
   ;; Self-check: a rule the .cljc original produces identically.
   (string-byte-length
    (result-value-of [:result :string :string]
-                    (rule ".card" (typed-map-new [:map :keyword :string]
-                                                 :color "#fff" :padding "16px"))
+                    (rule (record-new [:ref :css/rule]
+                                      ".card"
+                                      (typed-map-new [:map :keyword :string]
+                                                     :color "#fff" :padding "16px")))
                     "")))

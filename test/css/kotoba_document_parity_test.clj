@@ -15,8 +15,8 @@
   rest of the design system (html → shitsuke → …) will align to. Consumer
   `.cljc` APIs are unchanged.
 
-  T5.2: decl multi-arg folded into guest record; rule-doc/render-decls still
-  multi-arg (:document outside closed record profile)."
+  T5.2 + document-in-record: decl, rule-doc, and render-decls multi-arg pure
+  folded into guest records (`:doc/*`)."
   (:require [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [css.core :as css]
@@ -41,6 +41,10 @@
 (defn- decl-call [prop value]
   (str "(decl (record-new [:ref :doc/decl] "
        (pr-str prop) " " (kotoba-literal value) "))"))
+
+(defn- rule-doc-call [sel decls-expr]
+  (str "(rule-doc (record-new [:ref :doc/rule-doc] "
+       (kotoba-literal sel) " " decls-expr "))"))
 
 (defn- decls-vector-literal [decls]
   (str "(document-vector "
@@ -88,8 +92,9 @@
         (into {} (map-indexed
                   (fn [i [sel decls]]
                     [(str "doc_" i)
-                     (unwrap (str "(render-rule (rule-doc " (kotoba-literal sel) " "
-                                  (decls-vector-literal decls) "))"))])
+                     (unwrap (str "(render-rule "
+                                  (rule-doc-call sel (decls-vector-literal decls))
+                                  ")"))])
                   rule-corpus))
         form-a (compile-and-run form-a-source form-a-cases)
         docs (compile-and-run document-source doc-cases)]
@@ -111,8 +116,9 @@
                     (map-indexed
                      (fn [i v]
                        [(str "g_" i)
-                        (str "(match-result (render-rule (rule-doc \".x\" "
-                             "(document-vector " (decl-call :color v) ")))"
+                        (str "(match-result (render-rule "
+                             (rule-doc-call ".x" (str "(document-vector " (decl-call :color v) ")"))
+                             ")"
                              " [:result :string :string]"
                              " (ok text text) (err message \"REJECTED\"))")])
                      hostile))
@@ -126,16 +132,17 @@
              (compile-and-run
               document-source
               {"safe" (unwrap
-                       (str "(render-rule (rule-doc \".x\" (document-vector "
-                            (decl-call :color "red") ")))"))}))))))
+                       (str "(render-rule "
+                            (rule-doc-call ".x" (str "(document-vector " (decl-call :color "red") ")"))
+                            ")"))}))))))
 
 (deftest style-document-identity-print-read-and-sha256
   (let [source (str document-source "\n"
                     "(defn card [] :document\n"
-                    "  (rule-doc \".card\"\n"
+                    "  (rule-doc (record-new [:ref :doc/rule-doc] \".card\"\n"
                     "    (document-vector\n"
                     "      (decl (record-new [:ref :doc/decl] :color \"#fff\"))\n"
-                    "      (decl (record-new [:ref :doc/decl] :padding \"16px\")))))\n"
+                    "      (decl (record-new [:ref :doc/decl] :padding \"16px\"))))))\n"
                     "(defn card-css [] :string\n"
                     "  (result-value-of [:result :string :string] (render-rule (card)) \"\"))\n"
                     "(defn card-dig [] :string (rule-digest (card)))\n"

@@ -2,13 +2,19 @@
   ;; No :export: parity harness appends zero-arg case defns and executes them
   ;; via KIR. Schemas alone enable record-new/get.
   ;;
-  ;; T5.2 note: only closed-profile field types can live in guest records.
-  ;; `:document` is outside the closed profile, so rule-doc (selector+decls)
-  ;; and render-decls (decls+i+n+acc) stay multi-arg until document-in-record
-  ;; lands. decl (keyword+string) folds cleanly.
+  ;; T5.2 + document-in-record (compiler ≥ 7691b1ae): :document is a closed
+  ;; guest-record field type, so rule-doc (selector+decls) and render-decls
+  ;; (decls+i+n+acc) fold into single guest records alongside decl.
   (:schemas {;; T5.2 native guest record: multi-arg pure → single record
              :doc/decl [:record :doc/decl
-                        [[:prop :keyword] [:value :string]]]}))
+                        [[:prop :keyword] [:value :string]]]
+             :doc/rule-doc [:record :doc/rule-doc
+                            [[:selector :string] [:decls :document]]]
+             :doc/render-decls [:record :doc/render-decls
+                                [[:decls :document]
+                                 [:i :i64]
+                                 [:n :i64]
+                                 [:acc :string]]]}))
 
 ;; Delivery 6 first cutover slice for the design system (ADR-2607279200 /
 ;; ADR-2607270100 §10 / migration plan W6):
@@ -26,8 +32,8 @@
 ;; cutover will promote once html/shitsuke/... follow.
 ;;
 ;; Capability-free (kotoba/pure). Handles are not the application model.
-;; T5.2: decl multi-arg folded into guest record; rule-doc/render-decls blocked
-;; on :document-in-record (closed profile).
+;; T5.2: decl + rule-doc + render-decls multi-arg folded into guest records
+;; after document-in-record closed profile (compiler 7691b1ae).
 
 ;; --- breakout guard (same four sequences as form-A / css.core) ------------
 
@@ -46,11 +52,12 @@
     (document-map :prop (document-keyword prop)
                   :value (document-string value))))
 
-(defn rule-doc [selector :string decls :document] :document
-  ;; Multi-arg retained: :document not allowed in guest record schema
-  ;; (closed profile). See ns comment / Progress ADR.
-  (document-map :selector (document-string selector)
-                :decls decls))
+(defn rule-doc [x [:ref :doc/rule-doc]] :document
+  ;; document-in-record: selector+decls on one guest record
+  (let [selector (record-get x :selector)
+        decls (record-get x :decls)]
+    (document-map :selector (document-string selector)
+                  :decls decls)))
 
 ;; --- render logical style document → CSS stream ---------------------------
 
@@ -88,26 +95,34 @@
     (result-err-of [:result :string :string]
                    (string-concat "unsafe value for " (prop-of d)))))
 
-(defn render-decls [decls :document i :i64 n :i64 acc :string]
+(defn render-decls [x [:ref :doc/render-decls]]
   [:result :string :string]
-  ;; Multi-arg retained: decls is :document (outside closed record profile).
-  (if (>= i n)
-    (result-ok-of [:result :string :string] acc)
-    (match-result
-     (render-decl (option-value-of [:option :document]
-                    (document-vector-at decls i) (document-null)))
-     [:result :string :string]
-     (ok text
-         (render-decls decls (+ i 1) n
-                       (if (string=? acc "")
-                         text
-                         (string-concat acc (string-concat " " text)))))
-     (err message (result-err-of [:result :string :string] message)))))
+  ;; document-in-record: decls+i+n+acc on one guest record
+  (let [decls (record-get x :decls)
+        i (record-get x :i)
+        n (record-get x :n)
+        acc (record-get x :acc)]
+    (if (>= i n)
+      (result-ok-of [:result :string :string] acc)
+      (match-result
+       (render-decl (option-value-of [:option :document]
+                      (document-vector-at decls i) (document-null)))
+       [:result :string :string]
+       (ok text
+           (render-decls
+            (record-new [:ref :doc/render-decls]
+                        decls (+ i 1) n
+                        (if (string=? acc "")
+                          text
+                          (string-concat acc (string-concat " " text))))))
+       (err message (result-err-of [:result :string :string] message))))))
 
 (defn render-rule [d :document] [:result :string :string]
   (if (safe? (sel-of d))
     (match-result
-     (render-decls (decls-of d) 0 (document-count (decls-of d)) "")
+     (render-decls
+      (record-new [:ref :doc/render-decls]
+                  (decls-of d) 0 (document-count (decls-of d)) ""))
      [:result :string :string]
      (ok body
          (result-ok-of [:result :string :string]
@@ -132,10 +147,12 @@
   (string-byte-length
    (result-value-of [:result :string :string]
                     (render-rule
-                     (rule-doc ".card"
-                               (document-vector
-                                (decl (record-new [:ref :doc/decl]
-                                                  :color "#fff"))
-                                (decl (record-new [:ref :doc/decl]
-                                                  :padding "16px")))))
+                     (rule-doc
+                      (record-new [:ref :doc/rule-doc]
+                                  ".card"
+                                  (document-vector
+                                   (decl (record-new [:ref :doc/decl]
+                                                     :color "#fff"))
+                                   (decl (record-new [:ref :doc/decl]
+                                                     :padding "16px"))))))
                     "")))

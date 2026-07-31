@@ -15,7 +15,9 @@
   `[:map :keyword :string]` with `typed-map-entry-at`, which is sorted by key
   and therefore deterministic. Parity is asserted against a key-sorted run of
   css.core -- that is the honest comparison, and the difference is a finding
-  about the original, not about the port."
+  about the original, not about the port.
+
+  T5.2: multi-arg pure folded into guest records; cases call via record-new."
   (:require [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [css.core :as css]
@@ -48,6 +50,18 @@
 (defn- unwrap [expr]
   (str "(result-value-of [:result :string :string] " expr " \"\")"))
 
+(defn- rule-call [selector decls]
+  (str "(rule (record-new [:ref :css/rule] "
+       (kotoba-literal selector) " " (typed-map-literal decls) "))"))
+
+(defn- declaration-call [prop value]
+  (str "(declaration (record-new [:ref :css/declaration] "
+       (pr-str prop) " " (kotoba-literal value) "))"))
+
+(defn- number-value-call [prop n]
+  (str "(number-value (record-new [:ref :css/number-value] "
+       (pr-str prop) " " n "))"))
+
 ;; --- the corpus -----------------------------------------------------------
 ;; Real rules taken from css.core/operator-theme, with the numeric values
 ;; already reduced to text by value-str so both sides render the same input.
@@ -67,8 +81,7 @@
 (deftest rule-output-is-byte-identical-to-css-core
   (let [cases (into {} (map-indexed (fn [i [selector decls]]
                                       [(str "case_" i)
-                                       (unwrap (str "(rule " (kotoba-literal selector) " "
-                                                    (typed-map-literal decls) ")"))])
+                                       (unwrap (rule-call selector decls))])
                                     rule-corpus))
         actual (compile-cases cases)]
     (doseq [[i [selector decls]] (map-indexed vector rule-corpus)]
@@ -84,7 +97,7 @@
         numbers [0 1 2 8 12 16 24 100 980 65535]
         cases (into {} (for [p props n numbers]
                          [(str "n_" (str/replace (name p) "-" "_") "_" n)
-                          (str "(number-value " (pr-str p) " " n ")")]))
+                          (number-value-call p n)]))
         actual (compile-cases cases)]
     (doseq [p props n numbers]
       (testing (str p " " n)
@@ -98,7 +111,7 @@
                  "red /* swallow"]
         cases (into {} (map-indexed
                         (fn [i v] [(str "guard_" i)
-                                   (str "(match-result (declaration :color " (kotoba-literal v) ")"
+                                   (str "(match-result " (declaration-call :color v)
                                         " [:result :string :string]"
                                         " (ok text text) (err message \"REJECTED\"))")])
                         hostile))
@@ -111,4 +124,4 @@
         (is (= "REJECTED" (get actual (str "guard_" i))))))
     (testing "a safe value still renders"
       (is (= {"safe" "color: red;"}
-             (compile-cases {"safe" (unwrap "(declaration :color \"red\")")}))))))
+             (compile-cases {"safe" (unwrap (declaration-call :color "red"))}))))))

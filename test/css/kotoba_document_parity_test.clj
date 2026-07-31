@@ -74,8 +74,9 @@
         (into {} (map-indexed
                   (fn [i [sel decls]]
                     [(str "fa_" i)
-                     (unwrap (str "(rule " (kotoba-literal sel) " "
-                                  (typed-map-literal decls) ")"))])
+                     (unwrap (str "(rule (record-new [:ref :css/rule] "
+                                  (kotoba-literal sel) " "
+                                  (typed-map-literal decls) "))"))])
                   rule-corpus))
         doc-cases
         (into {} (map-indexed

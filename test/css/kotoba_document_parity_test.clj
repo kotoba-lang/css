@@ -13,7 +13,10 @@
 
   Form-A and css.core remain; this is the logical-value authority path the
   rest of the design system (html → shitsuke → …) will align to. Consumer
-  `.cljc` APIs are unchanged."
+  `.cljc` APIs are unchanged.
+
+  T5.2: decl multi-arg folded into guest record; rule-doc/render-decls still
+  multi-arg (:document outside closed record profile)."
   (:require [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [css.core :as css]
@@ -35,11 +38,14 @@
                              (sort-by (comp str key) decls)))
        ")"))
 
+(defn- decl-call [prop value]
+  (str "(decl (record-new [:ref :doc/decl] "
+       (pr-str prop) " " (kotoba-literal value) "))"))
+
 (defn- decls-vector-literal [decls]
   (str "(document-vector "
        (str/join " "
-                 (map (fn [[k v]]
-                        (str "(decl " (pr-str k) " " (kotoba-literal v) ")"))
+                 (map (fn [[k v]] (decl-call k v))
                       (sort-by (comp str key) decls)))
        ")"))
 
@@ -106,7 +112,7 @@
                      (fn [i v]
                        [(str "g_" i)
                         (str "(match-result (render-rule (rule-doc \".x\" "
-                             "(document-vector (decl :color " (kotoba-literal v) "))))"
+                             "(document-vector " (decl-call :color v) ")))"
                              " [:result :string :string]"
                              " (ok text text) (err message \"REJECTED\"))")])
                      hostile))
@@ -119,13 +125,17 @@
       (is (= {"safe" ".x { color: red; }"}
              (compile-and-run
               document-source
-              {"safe" (unwrap "(render-rule (rule-doc \".x\" (document-vector (decl :color \"red\"))))")}))))))
+              {"safe" (unwrap
+                       (str "(render-rule (rule-doc \".x\" (document-vector "
+                            (decl-call :color "red") ")))"))}))))))
 
 (deftest style-document-identity-print-read-and-sha256
   (let [source (str document-source "\n"
                     "(defn card [] :document\n"
                     "  (rule-doc \".card\"\n"
-                    "    (document-vector (decl :color \"#fff\") (decl :padding \"16px\"))))\n"
+                    "    (document-vector\n"
+                    "      (decl (record-new [:ref :doc/decl] :color \"#fff\"))\n"
+                    "      (decl (record-new [:ref :doc/decl] :padding \"16px\")))))\n"
                     "(defn card-css [] :string\n"
                     "  (result-value-of [:result :string :string] (render-rule (card)) \"\"))\n"
                     "(defn card-dig [] :string (rule-digest (card)))\n"

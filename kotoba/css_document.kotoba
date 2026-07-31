@@ -1,4 +1,14 @@
-(ns css-document)
+(ns css-document
+  ;; No :export: parity harness appends zero-arg case defns and executes them
+  ;; via KIR. Schemas alone enable record-new/get.
+  ;;
+  ;; T5.2 note: only closed-profile field types can live in guest records.
+  ;; `:document` is outside the closed profile, so rule-doc (selector+decls)
+  ;; and render-decls (decls+i+n+acc) stay multi-arg until document-in-record
+  ;; lands. decl (keyword+string) folds cleanly.
+  (:schemas {;; T5.2 native guest record: multi-arg pure → single record
+             :doc/decl [:record :doc/decl
+                        [[:prop :keyword] [:value :string]]]}))
 
 ;; Delivery 6 first cutover slice for the design system (ADR-2607279200 /
 ;; ADR-2607270100 §10 / migration plan W6):
@@ -16,6 +26,8 @@
 ;; cutover will promote once html/shitsuke/... follow.
 ;;
 ;; Capability-free (kotoba/pure). Handles are not the application model.
+;; T5.2: decl multi-arg folded into guest record; rule-doc/render-decls blocked
+;; on :document-in-record (closed profile).
 
 ;; --- breakout guard (same four sequences as form-A / css.core) ------------
 
@@ -27,11 +39,16 @@
 
 ;; --- document constructors ------------------------------------------------
 
-(defn decl [prop :keyword value :string] :document
-  (document-map :prop (document-keyword prop)
-                :value (document-string value)))
+(defn decl [x [:ref :doc/decl]] :document
+  ;; T5.2: prop+value on one guest record
+  (let [prop (record-get x :prop)
+        value (record-get x :value)]
+    (document-map :prop (document-keyword prop)
+                  :value (document-string value))))
 
 (defn rule-doc [selector :string decls :document] :document
+  ;; Multi-arg retained: :document not allowed in guest record schema
+  ;; (closed profile). See ns comment / Progress ADR.
   (document-map :selector (document-string selector)
                 :decls decls))
 
@@ -73,6 +90,7 @@
 
 (defn render-decls [decls :document i :i64 n :i64 acc :string]
   [:result :string :string]
+  ;; Multi-arg retained: decls is :document (outside closed record profile).
   (if (>= i n)
     (result-ok-of [:result :string :string] acc)
     (match-result
@@ -116,6 +134,8 @@
                     (render-rule
                      (rule-doc ".card"
                                (document-vector
-                                (decl :color "#fff")
-                                (decl :padding "16px"))))
+                                (decl (record-new [:ref :doc/decl]
+                                                  :color "#fff"))
+                                (decl (record-new [:ref :doc/decl]
+                                                  :padding "16px")))))
                     "")))

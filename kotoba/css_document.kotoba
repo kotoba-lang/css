@@ -61,29 +61,25 @@
 
 (defn prop-of [d :document] :string
   (keyword-name
-   (option-value-of [:option :keyword]
+   (option-or
      (document-keyword-value
-       (option-value-of [:option :document]
-         (document-get d :prop) (document-null)))
+       (option-or (document-get d :prop) (document-null)))
      :missing)))
 
 (defn value-of [d :document] :string
-  (option-value-of [:option :string]
+  (option-or
     (document-string-value
-      (option-value-of [:option :document]
-        (document-get d :value) (document-null)))
+      (option-or (document-get d :value) (document-null)))
     ""))
 
 (defn sel-of [d :document] :string
-  (option-value-of [:option :string]
+  (option-or
     (document-string-value
-      (option-value-of [:option :document]
-        (document-get d :selector) (document-null)))
+      (option-or (document-get d :selector) (document-null)))
     "*"))
 
 (defn decls-of [d :document] :document
-  (option-value-of [:option :document]
-    (document-get d :decls) (document-vector)))
+  (option-or (document-get d :decls) (document-vector)))
 
 (defn render-decl [d :document] [:result :string :string]
   (if (safe? (value-of d))
@@ -103,8 +99,8 @@
     (if (>= i n)
       (result-ok-of [:result :string :string] acc)
       (match-result
-       (render-decl (option-value-of [:option :document]
-                      (document-vector-at decls i) (document-null)))
+       (render-decl (option-or (document-vector-at decls i)
+                               (document-null)))
        [:result :string :string]
        (ok text
            (render-decls

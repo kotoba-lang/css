@@ -34,6 +34,26 @@ optional minification. No browser runtime CSS generator is shipped.
 - Values and selectors that could terminate a declaration or rule are rejected.
 - Dynamic styling uses conditional classes, inline style or CSS custom properties, not runtime rule generation.
 
+## Kotoba port (`kotoba/`)
+
+`.kotoba` ports of the string-producing halves of this library live under
+`kotoba/`, alongside — never instead of — the `.cljc` under `src/`
+(ADR-2607270100 §10). Each is gated by a byte-equality parity test that
+compiles the port and runs it through the KIR interpreter in the test JVM.
+`kotoba-lang/compiler` is a **test-only** dependency; consumers keep requiring
+`css.core` / `css.utility`.
+
+| module | ports | stays in `.cljc`, and why |
+|---|---|---|
+| `kotoba/css_core.kotoba` | `css.core` declaration/rule text | — |
+| `kotoba/css_document.kotoba` | the same rules as a logical `:document` value | — |
+| `kotoba/css_utility.kotoba` | `css.utility` `escape-class`, the variant split, the media-query and spacing-scale lookups, and the regex-driven utility families | `static-utilities` (90 entries; a Kotoba typed map holds 31, and its values are heterogeneous), `opacity-N` (a double the host prints; there is `string-from-i64` but no f64 printer), and `rules` / `media-rules` / `unsupported`, which build maps keyed by selector |
+
+Both excluded boundaries are asserted by the parity test rather than left as
+prose: every corpus token is checked to be absent from `static-utilities`, and
+`opacity-N` has a fixture showing the port reports it as unsupported instead of
+approximating it.
+
 ## Test
 
 ```bash

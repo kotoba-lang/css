@@ -1,7 +1,7 @@
 (ns css.build
   "Deterministic filesystem build boundary for css.core sheets."
   (:require [clojure.java.io :as io]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [clojure.walk :as walk]
             [css.core :as css]
             [css.utility :as utility]

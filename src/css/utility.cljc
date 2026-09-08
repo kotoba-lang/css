@@ -1,7 +1,7 @@
 (ns css.utility
   "Small deterministic layout-utility compiler. It intentionally covers layout
   primitives, leaving visual material and component styling to design systems."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def spacing-scale
   {"0" "0" "0.5" "0.125rem" "1" "0.25rem" "1.5" "0.375rem"

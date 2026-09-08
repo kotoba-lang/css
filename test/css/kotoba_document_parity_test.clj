@@ -17,7 +17,7 @@
 
   T5.2 + document-in-record: decl/rule-doc/render-decls multi-arg folded into
   guest records (`:doc/decl`, `:doc/rule`, `:doc/render-from`)."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :refer [deftest is testing]]
             [css.core :as css]
             [kotoba.compiler.core :as compiler]

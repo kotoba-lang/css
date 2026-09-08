@@ -1,6 +1,6 @@
 (ns kotoba.css.shadow
   "shadow-css compatible static class DSL. CSS remains build-time data."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [css.utility :as utility]))
 
 (defn class-name [ns-name line column]

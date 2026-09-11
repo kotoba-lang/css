@@ -59,5 +59,5 @@ approximating it.
 ```bash
 clojure -M:test
 clojure -M:lint
-nbb test/run_nbb_contract_tests.cljs
+nbb test/run_nbb_contract_tests.cljk
 ```

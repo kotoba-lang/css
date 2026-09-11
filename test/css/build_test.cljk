@@ -32,9 +32,9 @@
     (is (re-find #"grid-template-columns: 18rem minmax\(0,1fr\)" output))))
 
 (deftest indexes-shadow-compatible-static-css
-  (let [indexed (build/index-shadow-source "test/css/shadow_fixture.clj")
+  (let [indexed (build/index-shadow-source "test/css/shadow_fixture.cljk")
         entry (first indexed)
-        output (build/compile-css {:shadow-sources ["test/css/shadow_fixture.clj"]})]
+        output (build/compile-css {:shadow-sources ["test/css/shadow_fixture.cljk"]})]
     (is (= 1 (count indexed)))
     (is (re-find #"css_shadow-fixture__L\d+C\d+" (:class entry)))
     (is (re-find #"display: flex" (:css output)))

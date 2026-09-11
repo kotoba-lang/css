@@ -17,7 +17,7 @@ optional minification. No browser runtime CSS generator is shipped.
 | | |
 |---|---|
 | Role | ui-substrate |
-| Tests | `clojure -M:test` |
+| Tests | `kbb -M:test` |
 | Operator console (UI/UX) | — |
 | Export (CSV/JSON) | — |
 | Shared CSS design system | yes (css.core/operator-theme) |
@@ -57,7 +57,7 @@ approximating it.
 ## Test
 
 ```bash
-clojure -M:test
-clojure -M:lint
-nbb test/run_nbb_contract_tests.cljk
+kbb -M:test
+kbb -M:lint
+kbb --backend sci test/run_nbb_contract_tests.cljk
 ```

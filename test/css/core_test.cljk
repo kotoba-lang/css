@@ -1,6 +1,6 @@
 (ns css.core-test
   (:require [kotoba.lang.text :as str]
-            [clojure.test :refer [deftest is]]
+            [kotoba.test :refer [deftest is]]
             [css.core :as css]))
 
 (deftest renders-values

@@ -1,5 +1,5 @@
 (ns css.build-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [css.build :as build]))
 
 (deftest deterministic-build

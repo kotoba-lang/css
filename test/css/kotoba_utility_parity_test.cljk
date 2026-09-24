@@ -21,7 +21,7 @@
   rather than assumed: every corpus token is checked to be absent from
   `static-utilities`, and the opacity gap has its own test."
   (:require [kotoba.lang.text :as str]
-            [clojure.test :refer [deftest is testing]]
+            [kotoba.test :refer [deftest is testing]]
             [css.core :as css]
             [css.utility :as util]
             [kotoba.compiler.core :as compiler]

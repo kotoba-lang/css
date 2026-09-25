@@ -20,7 +20,7 @@
   `opacity-N` (a double the host prints). Both boundaries are asserted below
   rather than assumed: every corpus token is checked to be absent from
   `static-utilities`, and the opacity gap has its own test."
-  (:require [kotoba.lang.text :as str]
+  (:require [kotoba.lang.error :as kerror] [kotoba.lang.text :as str]
             [kotoba.test :refer [deftest is testing]]
             [css.core :as css]
             [css.utility :as util]
@@ -236,7 +236,7 @@
     (doseq [[i t] (map-indexed vector hostile)]
       (testing t
         (is (some? (util/utility-rule t)) "the regex does capture it")
-        (is (thrown? clojure.lang.ExceptionInfo (oracle-declarations t))
+        (is (thrown? kerror/ExceptionInfo (oracle-declarations t))
             "css.core throws rather than emit it")
         (is (= "REFUSED" (get actual (case-name "bad" i)))
             "and the port refuses rather than emit it")))

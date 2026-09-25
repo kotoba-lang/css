@@ -18,7 +18,7 @@
   about the original, not about the port.
 
   T5.2: multi-arg pure folded into guest records; cases call via record-new."
-  (:require [kotoba.lang.text :as str]
+  (:require [kotoba.lang.error :as kerror] [kotoba.lang.text :as str]
             [kotoba.test :refer [deftest is testing]]
             [css.core :as css]
             [kotoba.compiler.core :as compiler]
@@ -120,7 +120,7 @@
       (testing v
         ;; css.core throws; the port returns the failure as an :err value.
         ;; Both refuse to emit the text -- neither silently produces it.
-        (is (thrown? clojure.lang.ExceptionInfo (css/style {:color v})))
+        (is (thrown? kerror/ExceptionInfo (css/style {:color v})))
         (is (= "REJECTED" (get actual (str "guard_" i))))))
     (testing "a safe value still renders"
       (is (= {"safe" "color: red;"}

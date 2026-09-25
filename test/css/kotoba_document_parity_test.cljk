@@ -17,7 +17,7 @@
 
   T5.2 + document-in-record: decl/rule-doc/render-decls multi-arg folded into
   guest records (`:doc/decl`, `:doc/rule`, `:doc/render-from`)."
-  (:require [kotoba.lang.text :as str]
+  (:require [kotoba.lang.error :as kerror] [kotoba.lang.text :as str]
             [kotoba.test :refer [deftest is testing]]
             [css.core :as css]
             [kotoba.compiler.core :as compiler]
@@ -120,7 +120,7 @@
         actual (compile-and-run document-source cases)]
     (doseq [[i v] (map-indexed vector hostile)]
       (testing v
-        (is (thrown? clojure.lang.ExceptionInfo (css/style {:color v})))
+        (is (thrown? kerror/ExceptionInfo (css/style {:color v})))
         (is (= "REJECTED" (get actual (str "g_" i))))))
     (testing "safe value still renders"
       (is (= {"safe" ".x { color: red; }"}
